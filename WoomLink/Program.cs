@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -15,22 +16,144 @@ namespace WoomLink
     {
         static void Main(string[] args)
         {
-            Console.OutputEncoding = Encoding.Default;
+            if (args.Length < 1)
+            {
+                PrintUsage();
+                return;
+            }
 
-            var edata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\Splatoon 3\7.1.0\Program\Data\ELink2\elink2.Product.710.belnk.zs"));
-            var sdata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\Splatoon 3\7.1.0\Program\Data\SLink2\slink2.Product.710.bslnk.zs"));
+            Console.OutputEncoding = Encoding.UTF8;
 
-            // var edata = LoadYaz0SarcFileOntoHeap(new(@"R:\Games\Splatoon 2 Global Testfire\1.0.0 (Base)\Program\Data\ELink2\ELink2DB.szs"));
-            // var sdata = LoadYaz0SarcFileOntoHeap(new(@"R:\Games\Splatoon 2 Global Testfire\1.0.0 (Base)\Program\Data\SLink2\SLink2DB.szs"));
+            string mode = args[0];
+            switch (mode)
+            {
+                case "convert":
+                    RunConvert(args);
+                    break;
+                case "rebuild":
+                    RunRebuild(args);
+                    break;
+                case "legacy":
+                    RunLegacy(args);
+                    break;
+                default:
+                    PrintUsage();
+                    break;
+            }
+        }
 
-            // var edata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\Mario vs. Donkey Kong™ Demo\1.0.0 (Base)\Program\Data\ELink2\elink2.Product.dmo.belnk.zs"));
-            // var sdata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\Mario vs. Donkey Kong™ Demo\1.0.0 (Base)\Program\Data\SLink2\slink2.Product.dmo.bslnk.zs"));
+        static void PrintUsage()
+        {
+            Console.Error.WriteLine("WoomLink - XLink binary converter");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Convert binary to text:");
+            Console.Error.WriteLine("  WoomLink convert <input.belnk|bslnk> [--output <file.txt>] [--actors <ActorDb.yaml>]");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Rebuild text to binary:");
+            Console.Error.WriteLine("  WoomLink rebuild <input.txt> [--output <file.belnk|bslnk>]");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Legacy mode (old WoomLink behavior):");
+            Console.Error.WriteLine("  WoomLink legacy <elink-file> <slink-file> [--user <name>]");
+        }
 
-            // var dicts = LoadZstdCompressedData(new(@"R:\Games\The Legend of Zelda Tears of the Kingdom\1.0.0 (Base)\Program\Data\Pack\ZsDic.pack.zs"));
-            // var dictsSarc = new Sarc(dicts);
-            // var dict = dictsSarc.OpenFile(dictsSarc.GetNodeIndex("zs.zsdic")).ToArray();
-            // var edata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\The Legend of Zelda Tears of the Kingdom\1.0.0 (Base)\Program\Data\ELink2\elink2.Product.100.belnk.zs"), dict);
-            // var sdata = LoadZstdCompressedDataOntoHeap(new(@"R:\Games\The Legend of Zelda Tears of the Kingdom\1.0.0 (Base)\Program\Data\SLink2\slink2.Product.100.bslnk.zs"), dict);
+        static void RunConvert(string[] args)
+        {
+            if (args.Length < 2)
+            {
+                Console.Error.WriteLine("Usage: WoomLink convert <input> [--output <file>] [--actors <ActorDb.yaml>]");
+                return;
+            }
+
+            string input = args[1];
+            string? output = null;
+            string? actorsPath = null;
+            for (int i = 2; i < args.Length; i++)
+            {
+                if (args[i] == "--output" && i + 1 < args.Length)
+                    output = args[++i];
+                else if (args[i] == "--actors" && i + 1 < args.Length)
+                    actorsPath = args[++i];
+            }
+
+            var data = File.ReadAllBytes(input);
+            var reader = new Converter.XLinkBinaryReader();
+            var model = reader.Read(data);
+
+            Dictionary<uint, string>? actorNames = null;
+            if (actorsPath != null)
+            {
+                actorNames = Converter.ActorYamlParser.Parse(actorsPath);
+                Console.Error.WriteLine($"Loaded {actorNames.Count} actor names from {actorsPath}");
+            }
+
+            System.IO.TextWriter writer;
+            if (output != null)
+            {
+                writer = new StreamWriter(output, false, new UTF8Encoding(false));
+            }
+            else
+            {
+                writer = Console.Out;
+            }
+
+            var textWriter = new Converter.XLinkTextWriter(writer, actorNames);
+            textWriter.Write(model);
+
+            if (output != null)
+            {
+                writer.Dispose();
+                Console.Error.WriteLine($"Wrote {output}");
+            }
+        }
+
+        static void RunRebuild(string[] args)
+        {
+            if (args.Length < 2)
+            {
+                Console.Error.WriteLine("Usage: WoomLink rebuild <input.txt> [--output <file>]");
+                return;
+            }
+
+            string input = args[1];
+            string? output = null;
+            for (int i = 2; i < args.Length; i++)
+            {
+                if (args[i] == "--output" && i + 1 < args.Length)
+                    output = args[++i];
+            }
+
+            using var textReader = new StreamReader(input);
+            var parser = new Converter.XLinkTextReader();
+            var model = parser.Read(textReader);
+
+            var writer = new Converter.XLinkBinaryWriter();
+            var binary = writer.Write(model);
+
+            output ??= Path.ChangeExtension(input, ".bin");
+            File.WriteAllBytes(output, binary);
+            Console.Error.WriteLine($"Wrote {output} ({binary.Length} bytes)");
+        }
+
+        static void RunLegacy(string[] args)
+        {
+            if (args.Length < 3)
+            {
+                Console.Error.WriteLine("Usage: WoomLink legacy <elink-file> <slink-file> [--user <name>]");
+                return;
+            }
+
+            var elinkPath = args[1];
+            var slinkPath = args[2];
+            string? userName = null;
+
+            for (int i = 3; i < args.Length; i++)
+            {
+                if (args[i] == "--user" && i + 1 < args.Length)
+                    userName = args[++i];
+            }
+
+            var edata = LoadRawDataOntoHeap(new FileInfo(elinkPath));
+            var sdata = LoadRawDataOntoHeap(new FileInfo(slinkPath));
 
             var esystem = SystemELink.GetInstance();
             var ssystem = SystemSLink.GetInstance();
@@ -38,27 +161,34 @@ namespace WoomLink
             esystem.Initialize(null, eventPoolNum);
             ssystem.Initialize(eventPoolNum);
 
-            void SetupSystem(xlink2.System system, Pointer<byte> resource, PropertyDefinition[] globalProp)
+            void SetupSystem(xlink2.System system, Pointer<byte> resource)
             {
                 var r = system.LoadResource(resource.PointerValue);
                 Debug.Assert(r);
-                system.AllocGlobalProperty((uint)globalProp.Length);
-                for (uint i = 0; i < globalProp.Length; i++)
-                {
-                    system.SetGlobalPropertyDefinition(i, globalProp[i]);
-                }
-                system.FixGlobalPropertyDefinition();
             }
-            //var globProp = PropertyParser.Parse(new FileInfo(@"C:\Users\shado\Downloads\blitz-globprop.txt").OpenRead());
-            var globProp = Array.Empty<PropertyDefinition>();
-            SetupSystem(esystem, edata, globProp);
-            SetupSystem(ssystem, sdata, globProp);
 
-            Console.WriteLine(PrintUserByName(esystem, "Player"));
+            SetupSystem(esystem, edata);
+            SetupSystem(ssystem, sdata);
 
+            if (userName != null)
+            {
+                Console.WriteLine(PrintUserByName(esystem, userName));
+            }
+            else
+            {
+                PrintAllUsers(esystem);
+                PrintAllUsers(ssystem);
+            }
+        }
 
-            PrintAllUsers(esystem);
-            PrintAllUsers(ssystem);
+        private static Pointer<byte> LoadFileOntoHeap(FileInfo info, byte[]? dict = null)
+        {
+            var name = info.Name;
+            if (name.EndsWith(".zs", StringComparison.OrdinalIgnoreCase))
+                return LoadZstdCompressedDataOntoHeap(info, dict);
+            if (name.EndsWith(".szs", StringComparison.OrdinalIgnoreCase))
+                return LoadYaz0SarcFileOntoHeap(info);
+            return LoadRawDataOntoHeap(info);
         }
 
         private static string? PrintUserByIndex(xlink2.System system, int index)
