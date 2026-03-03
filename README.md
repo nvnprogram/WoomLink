@@ -30,7 +30,7 @@ WoomLink convert ELink2DB.belnk --output ELink2DB.txt --actors ActorDB.yaml
 ### Rebuild text to binary
 
 ```
-WoomLink -- rebuild <input.txt> [--output <file.belnk|bslnk>]
+WoomLink rebuild <input.txt> [--output <file.belnk|bslnk>]
 ```
 
 - `--output` sets the output binary file path (defaults to input path with `.bin` extension).
@@ -38,7 +38,7 @@ WoomLink -- rebuild <input.txt> [--output <file.belnk|bslnk>]
 Example:
 
 ```
-WoomLink-- rebuild ELink2DB.txt --output ELink2DB.belnk
+WoomLink rebuild ELink2DB.txt --output ELink2DB.belnk
 ```
 
 ### Legacy mode
@@ -46,7 +46,7 @@ WoomLink-- rebuild ELink2DB.txt --output ELink2DB.belnk
 Runs the original WoomLink print logic for a specific user or all users:
 
 ```
-WoomLink -- legacy <elink-file> <slink-file> [--user <name>]
+WoomLink legacy <elink-file> <slink-file> [--user <name>]
 ```
 
 ## Credits
