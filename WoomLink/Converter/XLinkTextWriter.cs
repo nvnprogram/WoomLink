@@ -434,6 +434,7 @@ public class XLinkTextWriter
         if (t.EndFrame != int.MaxValue)
             parts.Add($"end={t.EndFrame}");
         parts.Add($"hash={t.OverwriteHash}");
+        parts.Add($"flag={t.Flag}");
         string meta = string.Join(' ', parts);
 
         _w.Write(Indent());
@@ -503,7 +504,7 @@ public class XLinkTextWriter
         bool hasBody = hasCond || hasOw;
 
         _w.Write(Indent());
-        _w.Write($"ptrig [hash={t.OverwriteHash}] -> {assetRef}");
+        _w.Write($"ptrig [hash={t.OverwriteHash} flag={t.Flag}] -> {assetRef}");
 
         if (hasBody)
         {
@@ -554,7 +555,7 @@ public class XLinkTextWriter
                          && _file.TriggerOverwriteParams[t.TriggerOverwriteIdx].Params.Count > 0;
 
             _w.Write(Indent());
-            _w.Write($"always [hash={t.OverwriteHash}] -> {assetRef}");
+            _w.Write($"always [hash={t.OverwriteHash} flag={t.Flag}] -> {assetRef}");
 
             if (hasOw)
             {

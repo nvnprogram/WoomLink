@@ -447,9 +447,9 @@ public class XLinkBinaryWriter
         foreach (var t in u.AlwaysTriggers)
         {
             W32(t.Guid);
+            W32((uint)(t.AssetCallIdx * 32));
             W16(t.Flag);
             W16(t.OverwriteHash);
-            W32((uint)(t.AssetCallIdx * 32));
             WS(t.TriggerOverwriteIdx >= 0 && t.TriggerOverwriteIdx < tpOff.Count
                 ? tpOff[t.TriggerOverwriteIdx] : -1);
         }

@@ -800,6 +800,7 @@ public class XLinkTextReader
         var t = new ActionTrigger { TriggerOverwriteIdx = -1, EndFrame = int.MaxValue };
         string? targetKeyName = null;
         bool hasBody = line.TrimEnd().EndsWith("{");
+        bool hasExplicitFlag = false;
 
         bool seenArrow = false;
         foreach (var token in tok.Skip(1))
@@ -821,15 +822,20 @@ public class XLinkTextReader
                     case "hash": t.OverwriteHash = ushort.Parse(kv[1]); break;
                     case "frame": t.StartFrame = uint.Parse(kv[1]); break;
                     case "end": t.EndFrame = int.Parse(kv[1]); break;
+                    case "flag": t.Flag = ushort.Parse(kv[1]); hasExplicitFlag = true; break;
                     case "name":
                         t.PreviousActionName = Unquote(kv[1]);
-                        t.Flag |= 0x10;
                         break;
                 }
             }
         }
 
-        t.Flag |= 0x01;
+        if (!hasExplicitFlag)
+        {
+            t.Flag |= 0x01;
+            if (t.PreviousActionName != null)
+                t.Flag |= 0x10;
+        }
         t.AssetCallIdx = ResolveAssetCallIdx(u, targetKeyName);
         t.Guid = sead.HashCrc32.CalcStringHash(targetKeyName ?? "");
         _pos++;
@@ -941,11 +947,11 @@ public class XLinkTextReader
                 switch (kv[0])
                 {
                     case "hash": t.OverwriteHash = ushort.Parse(kv[1]); break;
+                    case "flag": t.Flag = ushort.Parse(kv[1]); break;
                 }
             }
         }
 
-        t.Flag = 0x0001;
         t.AssetCallIdx = ResolveAssetCallIdx(u, targetKeyName);
         t.Guid = sead.HashCrc32.CalcStringHash(targetKeyName ?? "");
         _pos++;
@@ -1111,11 +1117,10 @@ public class XLinkTextReader
                         switch (kv[0])
                         {
                             case "hash": t.OverwriteHash = ushort.Parse(kv[1]); break;
+                            case "flag": t.Flag = ushort.Parse(kv[1]); break;
                         }
                     }
                 }
-
-                t.Flag = 0x0001;
                 t.AssetCallIdx = ResolveAssetCallIdx(u, targetKeyName);
                 t.Guid = sead.HashCrc32.CalcStringHash(targetKeyName ?? "");
                 _pos++;

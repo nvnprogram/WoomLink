@@ -484,9 +484,9 @@ public class XLinkBinaryReader
             u.AlwaysTriggers.Add(new AlwaysTrigger
             {
                 Guid = U32(pos),
-                Flag = U16(pos + 4),
-                OverwriteHash = U16(pos + 6),
-                AssetCallIdx = (int)(U32(pos + 8) / ACT_SIZE),
+                AssetCallIdx = (int)(U32(pos + 4) / ACT_SIZE),
+                Flag = U16(pos + 8),
+                OverwriteHash = U16(pos + 10),
                 TriggerOverwriteIdx = atOwIdx,
             });
             pos += 16;
