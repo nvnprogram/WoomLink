@@ -702,7 +702,14 @@ public class XLinkTextWriter
 
     private string Indent() => new string(' ', _indent * 4);
 
-    private static string Fl(float f) => f.ToString("G9", CultureInfo.InvariantCulture);
+    private static string Fl(float f)
+    {
+        string s = f.ToString("G9", CultureInfo.InvariantCulture);
+        if (!s.Contains('.') && !s.Contains('E') && !s.Contains('e') &&
+            !float.IsNaN(f) && !float.IsInfinity(f))
+            s += ".0";
+        return s;
+    }
 
     private static bool NeedsQuoting(string s)
     {
